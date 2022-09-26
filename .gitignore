@@ -1,0 +1,6 @@
+*.cpython*
+.vscode/
+results
+tensorboard
+**/*.DS_Store
+.Rhistory
