@@ -1,6 +1,7 @@
 *.cpython*
 .vscode/
-results
+results*
 tensorboard
 **/*.DS_Store
 .Rhistory
+slurm*

@@ -1,4 +1,4 @@
-from collections import defaultdict, deque
+from collections import deque
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -20,6 +20,7 @@ def feed_forward_network(nlayers, din, dbody, dout, act_fun, act_output=False):
     return nn.Sequential(*layers)
 
 
+
 class DragonNet(pl.LightningModule):
     def __init__(
         self, din, dbody=200, dhead=100, depth=3, sgld=False, l2=1e-2, num_pseudo_batches=None, burnin=0.5, metrics_buffer_size=100, lr=1e-5
@@ -32,8 +33,8 @@ class DragonNet(pl.LightningModule):
         # the following properties are only used in the Bayesian version with SGLD
         self.num_pseudo_batches = num_pseudo_batches
         self.burnin = burnin  # when using SGLD, burnin is the number of iterations without noise
-        if metrics_buffer_size > 0:
-            self.buffer = defaultdict(lambda: deque(maxlen=metrics_buffer_size))
+        self.metrics_buffer_size = metrics_buffer_size
+        self.buffer = dict()
 
         # representation layers
         self.representation = feed_forward_network(depth, din, dbody, dbody, nn.ELU, act_output=True)
@@ -66,12 +67,12 @@ class DragonNet(pl.LightningModule):
             burnin_e = int(self.burnin / self.num_pseudo_batches)
             num_pseudo_batches = 1  # self.num_pseudo_batches
             opt = SGLD(self.parameters(), self.lr, num_burn_in_steps=self.burnin, num_pseudo_batches=num_pseudo_batches, weight_decay=self.l2, precondition=False)
-            sched = torch.optim.lr_scheduler.LinearLR(opt, total_iters=burnin_e, start_factor=1.0, end_factor=1e-2)
+            sched = optim.lr_scheduler.LinearLR(opt, total_iters=burnin_e, start_factor=1.0, end_factor=1e-2)
             # return opt
             return {"optimizer": opt, "lr_scheduler": {"scheduler": sched, "monitor": 'train_loss'}}
         else:
-            opt = torch.optim.SGD(self.parameters(), self.lr, momentum=0.9, nesterov=True, weight_decay=self.l2)
-            sched = torch.optim.lr_scheduler.ReduceLROnPlateau(opt, cooldown=0, min_lr=1e-7, patience=5, factor=0.5, verbose=True)
+            opt = optim.SGD(self.parameters(), self.lr, momentum=0.9, nesterov=True, weight_decay=self.l2)
+            sched = optim.lr_scheduler.ReduceLROnPlateau(opt, cooldown=0, min_lr=1e-7, patience=5, factor=0.5, verbose=False)
             return {"optimizer": opt, "lr_scheduler": {"scheduler": sched, "monitor": 'train_loss'}}
 
     def training_step(self, train_batch, batch_idx):
@@ -102,4 +103,6 @@ class DragonNet(pl.LightningModule):
 
     def on_train_epoch_end(self) -> None:
         for k, v in self.trainer.logged_metrics.items():
+            if k not in self.buffer:
+                self.buffer[k] = deque(maxlen=self.metrics_buffer_size)
             self.buffer[k].append(v.item())
