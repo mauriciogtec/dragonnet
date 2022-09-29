@@ -1,25 +1,26 @@
 import argparse
+import torch
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--lr", default=0.01, type=float, nargs="+")
-    parser.add_argument("--device", default=0, type=int)
+    parser.add_argument("--l2", default=0.01, type=float, nargs="+")
+    ncuda = torch.cuda.device_count()
     args = parser.parse_args()
 
-    for lr in args.lr:
-        fname = f"slurmjob_lr-{lr}-serial.sh"
+
+    for i, l2 in enumerate(args.l2):
+        fname = f"serialjob_l2-{l2}.sh"
+        dev = "cpu" if ncuda == 0 else i % ncuda
 
         lines = [
             "#! /usr/bin/bash",
-            "source ~/.bashrc",
+            "sousrce ~/.bashrc",
             "conda activate cuda116",
-            f"export lr={lr}",
+            f"export l2={l2}",
         ]
 
         for scenario in range(7):
-            # start = "001" if scenario != 4 else "190"
-            start = "001"
-            s = f"for i in {{{start}..200}}; do python train.py --rdir=results_lr-${{lr}} --scenario={scenario} --seed=1${{i}}001 --lr=${{lr}} --device {args.device} --silent; done"
+            s = f"python train.py --rdir=results_l2-${{l2}} --scenario={scenario} --l2=${{l2}} --device {dev} --silent --nseeds=200"
             lines.append(s)
         lines.append("")
 

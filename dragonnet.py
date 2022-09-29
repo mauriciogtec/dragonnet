@@ -23,7 +23,7 @@ def feed_forward_network(nlayers, din, dbody, dout, act_fun, act_output=False):
 
 class DragonNet(pl.LightningModule):
     def __init__(
-        self, din, dbody=200, dhead=100, depth=3, sgld=False, l2=1e-2, num_pseudo_batches=None, burnin=0.5, metrics_buffer_size=100, lr=1e-5
+        self, din, dbody=200, dhead=100, depth=3, sgld=False, l2=1e-2, num_pseudo_batches=None, burnin=0.5, metrics_buffer_size=100, lr=1e-4
     ):
         super().__init__()
         self.sgld = sgld
@@ -72,7 +72,7 @@ class DragonNet(pl.LightningModule):
             return {"optimizer": opt, "lr_scheduler": {"scheduler": sched, "monitor": 'train_loss'}}
         else:
             opt = optim.SGD(self.parameters(), self.lr, momentum=0.9, nesterov=True, weight_decay=self.l2)
-            sched = optim.lr_scheduler.ReduceLROnPlateau(opt, cooldown=0, min_lr=1e-7, patience=5, factor=0.5, verbose=False)
+            sched = optim.lr_scheduler.ReduceLROnPlateau(opt, cooldown=0, min_lr=0.0, patience=10, factor=0.5, verbose=True)
             return {"optimizer": opt, "lr_scheduler": {"scheduler": sched, "monitor": 'train_loss'}}
 
     def training_step(self, train_batch, batch_idx):
@@ -81,22 +81,24 @@ class DragonNet(pl.LightningModule):
         tlogits, Yhat_0, Yhat_1, Y_pred = self(X, A)
 
         # compute multiple parts of the loss function
-        yloss = F.mse_loss(Y, Y_pred, reduction='sum')  # standard mse loss for the outcome 
-        tloss = F.binary_cross_entropy_with_logits(tlogits, A, reduction='sum')  # logistic loss or treatment
+        yloss = F.mse_loss(Y, Y_pred, reduction='mean')  # standard mse loss for the outcome 
+        tloss = F.binary_cross_entropy_with_logits(tlogits, A, reduction='mean')  # logistic loss or treatment
         
         # now compute tmle regularization loss of dragonnet
         tprob = (torch.sigmoid(tlogits) + 0.01) / 1.02  # expit with added numeric stability
         Y_pert = Y_pred + self.epsilon * (A / tprob - (1 - A) / (1 - tprob))
-        tmleloss = (Y - Y_pert).pow(2).sum(-1).mean(0)  # tmle loss
+        tmleloss = F.mse_loss(Y, Y_pert, reduction='mean')  # tmle loss
         
         # total loss and causal effect (ate) estimate
         loss = yloss + tloss + tmleloss
         ate_estimate = (Yhat_1 - Yhat_0).mean()
 
         # log metrics
-        self.log('train_loss', float(loss), prog_bar=True, on_epoch=True, on_step=False)
-        self.log('mse_loss', float(yloss), prog_bar=True, on_epoch=True, on_step=False)
-        self.log('ate_estimate', float(ate_estimate), prog_bar=True, on_epoch=True, on_step=False)
+        self.log('train_loss', float(loss), prog_bar=True, on_epoch=True, on_step=False, sync_dist=True)
+        self.log('mse_loss', float(yloss), prog_bar=True, on_epoch=True, on_step=False, sync_dist=True)
+        self.log('treatment_loss', float(tloss), prog_bar=True, on_epoch=True, on_step=False, sync_dist=True)
+        self.log('tmle_loss', float(tmleloss), prog_bar=True, on_epoch=True, on_step=False, sync_dist=True)
+        self.log('ate_estimate', float(ate_estimate), prog_bar=True, on_epoch=True, on_step=False, sync_dist=True)
         # self.log('lr', float(self.lr_schedulers().get_last_lr()[0]), prog_bar=True, on_epoch=True, on_step=False)
 
         return loss  # returns the loss to be optimized with SGD/SGLD
