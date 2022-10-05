@@ -7,3 +7,4 @@ tensorboard
 .Rproj.user
 *.Rproj
 slurm*
+!slurmjob_app.sh

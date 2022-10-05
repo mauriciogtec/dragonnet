@@ -10,7 +10,7 @@ from torch.utils.data import DataLoader, TensorDataset
 
 
 def run(
-    scenario=0, P=100, n=None, nseeds=1, global_seed=12345, batch=64, dev="cpu", sgld=False, burnin=0.5, rdir="results",  device="None", verbose=True, **kwargs  # args to pass to DragonNet
+    scenario=0, P=100, n=None, nseeds=1, global_seed=12345, batch=64, dev="cpu", sgld=False, burnin=0.5, rdir="results",  device=None, verbose=True, **kwargs  # args to pass to DragonNet
 ):
     set_seed(global_seed)
     simulation_seeds = np.random.randint(0, int(1e6), size=nseeds)
@@ -35,7 +35,6 @@ def run(
         buffer_size = epochs // 4 if sgld else 1
         sampling_kwargs = dict(num_pseudo_batches=nbatches, burnin=burnin, metrics_buffer_size=buffer_size)
         model = DragonNet(P, sgld=sgld, **sampling_kwargs, **kwargs)
-        nparams = sum(m.numel() for m in model.parameters() if m.requires_grad)
 
         # fit model
         trainer = pl.Trainer(accelerator="auto", devices=[device], max_epochs=epochs, logger=[], enable_checkpointing=False, gradient_clip_val=10.0, enable_progress_bar=verbose)

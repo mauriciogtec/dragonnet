@@ -23,7 +23,7 @@ def feed_forward_network(nlayers, din, dbody, dout, act_fun, act_output=False):
 
 class DragonNet(pl.LightningModule):
     def __init__(
-        self, din, dbody=200, dhead=100, depth=3, sgld=False, l2=1e-2, num_pseudo_batches=None, burnin=0.5, metrics_buffer_size=100, lr=1e-4
+        self, din, dbody=200, dhead=100, depth=3, sgld=False, l2=1e-2, num_pseudo_batches=None, burnin=0.5, metrics_buffer_size=100, lr=1e-3
     ):
         super().__init__()
         self.sgld = sgld
