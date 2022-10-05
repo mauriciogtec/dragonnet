@@ -4,9 +4,6 @@ results*
 tensorboard
 **/*.DS_Store
 .Rhistory
-<<<<<<< HEAD
 .Rproj.user
 *.Rproj
-=======
 slurm*
->>>>>>> a20d956b5f8625884f3f803217b85eedc1cdaffe
