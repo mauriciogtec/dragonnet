@@ -4,3 +4,5 @@ results
 tensorboard
 **/*.DS_Store
 .Rhistory
+.Rproj.user
+*.Rproj
