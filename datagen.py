@@ -3,7 +3,6 @@ import random
 import torch
 import numpy as np
 from scipy.stats import norm
-import pandas as pd
 from sklearn.preprocessing import StandardScaler
 
 
@@ -61,7 +60,7 @@ def sim_data(scenario, n = 300, P = 100):
         )
         mu_1 = (
             0.5*reg1 + 0.5*reg2 + -1 + 0.5*np.abs(X[2]+1) + 0.3*X[3] + np.exp(0.5*X[4])
-            -0.5*np.exp(X[5]) - np.abs(X[6]+1)
+            -0.5*np.abs(X[5]) - np.abs(X[6]+1)
             + X[7] + X[8] + X[9] + 0.5*X[10] + 0.5*X[11] + 0.5*X[12] - 0.5*X[13]
             - 0.5*X[14] - 0.5*X[15] - np.exp(-0.2*X[16])
         )
