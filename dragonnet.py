@@ -56,11 +56,15 @@ class DragonNet(pl.LightningModule):
 
     def forward(self, X, A):
         Z = self.representation(X)
+        tlogits = self.ht(Z).squeeze(-1)
+        tprob = (torch.sigmoid(tlogits) + 0.01) / 1.02
         Yhat_1 = self.h1(Z).squeeze(-1)
         Yhat_0 = self.h0(Z).squeeze(-1)
-        tlogits = self.ht(Z).squeeze(-1)
-        Y_pred = A * Yhat_1 + (1 - A) * Yhat_0
-        return tlogits, Yhat_0, Yhat_1, Y_pred
+        Ypert_1 =  Yhat_1 + self.epsilon / tprob
+        Ypert_0 =  Yhat_0 + self.epsilon / (1 - tprob)
+        Ypred = A * Yhat_1 + (1 - A) * Yhat_0
+        Ypert = A * Ypert_1 + (1 - A) * Ypert_0
+        return tlogits, Ypert_0, Ypert_1, Ypred, Ypert
 
     def configure_optimizers(self):
         if self.sgld:
@@ -78,26 +82,24 @@ class DragonNet(pl.LightningModule):
     def training_step(self, train_batch, batch_idx):
         # evaluate network prediction on minibatch
         X, A, Y = train_batch
-        tlogits, Yhat_0, Yhat_1, Y_pred = self(X, A)
+        tlogits, Ypert_0, Ypert_1, Ypred, Ypert = self(X, A)
 
         # compute multiple parts of the loss function
-        yloss = F.mse_loss(Y, Y_pred, reduction='mean')  # standard mse loss for the outcome 
+        yloss = F.mse_loss(Y, Ypred, reduction='mean')  # standard mse loss for the outcome 
         tloss = F.binary_cross_entropy_with_logits(tlogits, A, reduction='mean')  # logistic loss or treatment
         
         # now compute tmle regularization loss of dragonnet
-        tprob = (torch.sigmoid(tlogits) + 0.01) / 1.02  # expit with added numeric stability
-        Y_pert = Y_pred + self.epsilon * (A / tprob - (1 - A) / (1 - tprob))
-        tmleloss = F.mse_loss(Y, Y_pert, reduction='mean')  # tmle loss
+        tregloss = F.mse_loss(Y, Ypert, reduction='mean')  # tmle loss
         
         # total loss and causal effect (ate) estimate
-        loss = yloss + tloss + tmleloss
-        ate_estimate = (Yhat_1 - Yhat_0).mean()
+        loss = yloss + tloss + tregloss
+        ate_estimate = (Ypert_1 - Ypert_0).mean()
 
         # log metrics
         self.log('train_loss', float(loss), prog_bar=True, on_epoch=True, on_step=False, sync_dist=True)
         self.log('mse_loss', float(yloss), prog_bar=True, on_epoch=True, on_step=False, sync_dist=True)
         self.log('treatment_loss', float(tloss), prog_bar=True, on_epoch=True, on_step=False, sync_dist=True)
-        self.log('tmle_loss', float(tmleloss), prog_bar=True, on_epoch=True, on_step=False, sync_dist=True)
+        self.log('treg_loss', float(tregloss), prog_bar=True, on_epoch=True, on_step=False, sync_dist=True)
         self.log('ate_estimate', float(ate_estimate), prog_bar=True, on_epoch=True, on_step=False, sync_dist=True)
         # self.log('lr', float(self.lr_schedulers().get_last_lr()[0]), prog_bar=True, on_epoch=True, on_step=False)
 

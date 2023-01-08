@@ -1,11 +1,16 @@
 #! /usr/bin/bash
-sousrce ~/.bashrc
-conda activate cuda116
+# source ~/.bashrc
+conda activate torchmac
 export l2=0.01
-python train_sim.py --rdir=results_lr-0.001-l2-${l2} --scenario=0 --l2=${l2} --lr 0.001 --device 0 --silent --nseeds=200
-python train_sim.py --rdir=results_lr-0.001-l2-${l2} --scenario=1 --l2=${l2} --lr 0.001 --device 0 --silent --nseeds=200
-python train_sim.py --rdir=results_lr-0.001-l2-${l2} --scenario=2 --l2=${l2} --lr 0.001 --device 0 --silent --nseeds=200
-python train_sim.py --rdir=results_lr-0.001-l2-${l2} --scenario=3 --l2=${l2} --lr 0.001 --device 0 --silent --nseeds=200
-python train_sim.py --rdir=results_lr-0.001-l2-${l2} --scenario=4 --l2=${l2} --lr 0.001 --device 0 --silent --nseeds=200
-python train_sim.py --rdir=results_lr-0.001-l2-${l2} --scenario=5 --l2=${l2} --lr 0.001 --device 0 --silent --nseeds=200
-python train_sim.py --rdir=results_lr-0.001-l2-${l2} --scenario=6 --l2=${l2} --lr 0.001 --device 0 --silent --nseeds=200
+
+for s in {0..6}
+do 
+    python train_sim.py --rdir=results_lr-0.001-l2-${l2} --scenario=$s --l2=${l2} --lr 0.001 --silent --nseeds=200 &
+done
+wait
+
+for s in {0..19}
+do 
+    python train_app.py --seed $s --silent
+done
+wait

@@ -12,11 +12,9 @@ import multiprocessing as mp
 
 
 def run(
-    seed=0, global_seed=12345, batch=64, epochs=1000, dev="cpu", sgld=False, burnin=0.5, rdir="results_app",  device=None, verbose=True, **kwargs  # args to pass to DragonNet
+    seed=0, global_seed=12345, batch=64, epochs=1000, sgld=False, burnin=0.5, rdir="results_app", verbose=True, **kwargs  # args to pass to DragonNet
 ):
     set_seed(global_seed + seed)
-    if device is None:
-        device = 0 if torch.cuda.is_available() else "cpu"
 
     for year in (2013, 2014):
         # load data
@@ -32,7 +30,7 @@ def run(
 
         dataset = TensorDataset(X, A, Y)
         nw = mp.cpu_count()
-        dataloader = DataLoader(dataset, batch_size=batch, shuffle=True, num_workers=nw)
+        dataloader = DataLoader(dataset, batch_size=batch, shuffle=True, num_workers=nw, persistent_workers=True, pin_memory=True)
 
         # create dragonnet model
         nbatches = (n // batch)  # nbatches used for burnin period and adjust SGLD
@@ -42,7 +40,7 @@ def run(
         model = DragonNet(P, sgld=sgld, **sampling_kwargs, **kwargs)
 
         # fit model
-        trainer = pl.Trainer(accelerator="auto", devices=[device], max_epochs=epochs, logger=[], enable_checkpointing=False, gradient_clip_val=10.0, enable_progress_bar=verbose)
+        trainer = pl.Trainer(accelerator="cpu", devices="auto", max_epochs=epochs, logger=[], enable_checkpointing=False, gradient_clip_val=10.0, enable_progress_bar=verbose)
         trainer.fit(model, dataloader)
 
         # correct the buffer for the initial normalization of y and add true_ate rror
@@ -83,6 +81,5 @@ if __name__ == "__main__":
     parser.add_argument("--lr", default=None, type=float)
     parser.add_argument("--silent", default=None, dest="verbose", action="store_false")
     parser.add_argument("--rdir", default=None, type=str)
-    parser.add_argument("--device", default=None, type=int)
     args = parser.parse_args()
     run(**{k: v for k,v in vars(args).items() if v is not None})

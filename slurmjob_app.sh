@@ -11,3 +11,4 @@ source ~/.bashrc
 conda activate cuda116
 python train_app.py --device 0 --seed $SLURM_ARRAY_TASK_ID --silent
 
+# for s in {1..20}; do python train_app.py --seed $s --silent; done
