@@ -1,6 +1,6 @@
 #! /usr/bin/bash
-# source ~/.bashrc
-conda activate torchmac
+
+# conda activate torchmac
 export l2=0.01
 
 for s in {0..6}

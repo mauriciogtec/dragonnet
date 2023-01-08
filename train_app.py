@@ -29,8 +29,7 @@ def run(
         n, P = X.shape
 
         dataset = TensorDataset(X, A, Y)
-        nw = mp.cpu_count()
-        dataloader = DataLoader(dataset, batch_size=batch, shuffle=True, num_workers=nw, persistent_workers=True, pin_memory=True)
+        dataloader = DataLoader(dataset, batch_size=batch, shuffle=True, num_workers=2, persistent_workers=True, pin_memory=True)
 
         # create dragonnet model
         nbatches = (n // batch)  # nbatches used for burnin period and adjust SGLD
@@ -40,7 +39,7 @@ def run(
         model = DragonNet(P, sgld=sgld, **sampling_kwargs, **kwargs)
 
         # fit model
-        trainer = pl.Trainer(accelerator="cpu", devices="auto", max_epochs=epochs, logger=[], enable_checkpointing=False, gradient_clip_val=10.0, enable_progress_bar=verbose)
+        trainer = pl.Trainer(accelerator="auto", devices="auto", max_epochs=epochs, logger=[], enable_checkpointing=False, gradient_clip_val=10.0, enable_progress_bar=verbose)
         trainer.fit(model, dataloader)
 
         # correct the buffer for the initial normalization of y and add true_ate rror

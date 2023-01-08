@@ -47,7 +47,7 @@ class DragonNet(pl.LightningModule):
         self.ht = nn.Linear(dbody, 1)
         
         # epsilon for tmle regularization
-        self.epsilon = nn.Parameter(torch.tensor(1.0), requires_grad=True)
+        self.epsilon = nn.Parameter(torch.tensor(0.0), requires_grad=True)
 
         # initialize neural network weights to match dragonnet paper
         for m in self.modules():
@@ -61,9 +61,9 @@ class DragonNet(pl.LightningModule):
         Yhat_1 = self.h1(Z).squeeze(-1)
         Yhat_0 = self.h0(Z).squeeze(-1)
         Ypert_1 =  Yhat_1 + self.epsilon / tprob
-        Ypert_0 =  Yhat_0 + self.epsilon / (1 - tprob)
+        Ypert_0 =  Yhat_0 - self.epsilon / (1 - tprob)
         Ypred = A * Yhat_1 + (1 - A) * Yhat_0
-        Ypert = A * Ypert_1 + (1 - A) * Ypert_0
+        Ypert = Ypred + self.epsilon * (A / tprob - (1 - A) / (1 - tprob))
         return tlogits, Ypert_0, Ypert_1, Ypred, Ypert
 
     def configure_optimizers(self):

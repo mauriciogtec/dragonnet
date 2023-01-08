@@ -25,7 +25,7 @@ def run(
         true_ate = scaler.scale_[0] * (Y_1 - Y_0).mean()
         X, A, Y = [torch.FloatTensor(u) for u in (X, A, Y)]
         dataset = TensorDataset(X, A, Y)
-        dataloader = DataLoader(dataset, batch_size=batch, shuffle=True, pin_memory=True, persistent_workers=True, num_workers=8)
+        dataloader = DataLoader(dataset, batch_size=batch, shuffle=True, pin_memory=True, persistent_workers=True, num_workers=2)
 
         # create dragonnet model
         nbatches = (n // batch)  # nbatches used for burnin period and adjust SGLD
